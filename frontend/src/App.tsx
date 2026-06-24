@@ -19,7 +19,9 @@ import {
   ChevronDown
 } from 'lucide-react';
 
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:3000/api'
+  : 'https://tactico-backend-jj.loca.lt/api';
 
 // Interfaces
 interface Tournament { id: string; name: string; _count?: { matches: number } }
