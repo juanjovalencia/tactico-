@@ -1,5 +1,5 @@
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -9,7 +9,7 @@ generator client {
 
 model Tournament {
   id      String   @id @default(uuid())
-  name    String   @db.VarChar(100)
+  name    String
   matches Match[]
 
   @@map("tournaments")
@@ -17,7 +17,7 @@ model Tournament {
 
 model Stadium {
   id      String    @id @default(uuid())
-  name    String    @db.VarChar(100)
+  name    String
   clubs   Club[]
   matches Match[]
 
@@ -26,8 +26,8 @@ model Stadium {
 
 model Club {
   id             String        @id @default(uuid())
-  name           String        @db.VarChar(100)
-  tacticalSystem String?       @map("tactical_system") @db.VarChar(20)
+  name           String
+  tacticalSystem String?       @map("tactical_system")
   stadiumId      String?       @map("stadium_id")
   stadium        Stadium?      @relation(fields: [stadiumId], references: [id])
   players        Player[]
@@ -40,7 +40,7 @@ model Club {
 
 model Player {
   id                 String        @id @default(uuid())
-  name               String        @db.VarChar(100)
+  name               String
   currentClubId      String?       @map("current_club_id")
   currentClub        Club?         @relation(fields: [currentClubId], references: [id])
   lineups            MatchLineup[] @relation("PlayerLineups")
@@ -55,7 +55,7 @@ model Match {
   tournamentId String        @map("tournament_id")
   tournament   Tournament    @relation(fields: [tournamentId], references: [id])
   matchday     Int
-  date         DateTime      @db.Timestamp
+  date         DateTime
   homeClubId   String        @map("home_club_id")
   homeClub     Club          @relation("HomeMatches", fields: [homeClubId], references: [id])
   awayClubId   String        @map("away_club_id")
