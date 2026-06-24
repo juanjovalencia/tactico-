@@ -68,27 +68,21 @@ model Match {
   @@map("matches")
 }
 
-enum LineupStatus {
-  titular
-  suplente
-  no_jugo
-}
-
 model MatchLineup {
-  id                 String       @id @default(uuid())
-  matchId            String       @map("match_id")
-  match              Match        @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  playerId           String       @map("player_id")
-  player             Player       @relation("PlayerLineups", fields: [playerId], references: [id])
-  clubId             String       @map("club_id")
-  club               Club         @relation(fields: [clubId], references: [id])
-  isCalledUp         Boolean      @default(true) @map("is_called_up")
-  status             LineupStatus
-  minutesPlayed      Int          @default(0) @map("minutes_played")
-  isSubstituted      Boolean      @default(false) @map("is_substituted")
-  substitutedById    String?      @map("substituted_by_id")
-  substitutedBy      Player?      @relation("SubstitutedLineups", fields: [substitutedById], references: [id])
-  substitutionMinute Int?         @map("substitution_minute")
+  id                 String   @id @default(uuid())
+  matchId            String   @map("match_id")
+  match              Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  playerId           String   @map("player_id")
+  player             Player   @relation("PlayerLineups", fields: [playerId], references: [id])
+  clubId             String   @map("club_id")
+  club               Club     @relation(fields: [clubId], references: [id])
+  isCalledUp         Boolean  @default(true) @map("is_called_up")
+  status             String   // "titular", "suplente", "no_jugo"
+  minutesPlayed      Int      @default(0) @map("minutes_played")
+  isSubstituted      Boolean  @default(false) @map("is_substituted")
+  substitutedById    String?  @map("substituted_by_id")
+  substitutedBy      Player?  @relation("SubstitutedLineups", fields: [substitutedById], references: [id])
+  substitutionMinute Int?     @map("substitution_minute")
 
   @@map("match_lineups")
 }

@@ -1,5 +1,5 @@
 import prisma from '../config/prisma';
-import { LineupStatus } from '@prisma/client';
+export type LineupStatus = 'titular' | 'suplente' | 'no_jugo';
 
 export interface LineupInput {
   playerId: string;
