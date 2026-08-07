@@ -26,7 +26,12 @@ model Stadium {
 
 model Club {
   id             String        @id @default(uuid())
+  code           String?       @unique // e.g. "CLB1001"
   name           String
+  shortName      String?       @map("short_name")
+  abbreviation   String?
+  region         String?
+  comuna         String?
   tacticalSystem String?       @map("tactical_system")
   stadiumId      String?       @map("stadium_id")
   stadium        Stadium?      @relation(fields: [stadiumId], references: [id])
@@ -40,7 +45,16 @@ model Club {
 
 model Player {
   id                 String        @id @default(uuid())
+  playerCode         String?       @map("player_code") // e.g. "J000001"
   name               String
+  birthDate          String?       @map("birth_date")
+  nationality        String?
+  generalPosition    String?       @map("general_position")
+  specificPosition   String?       @map("specific_position")
+  altPosition1       String?       @map("alt_position_1")
+  altPosition2       String?       @map("alt_position_2")
+  preferredFoot      String?       @map("preferred_foot")
+  playerStatus       String?       @map("player_status")
   currentClubId      String?       @map("current_club_id")
   currentClub        Club?         @relation(fields: [currentClubId], references: [id])
   lineups            MatchLineup[] @relation("PlayerLineups")

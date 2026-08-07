@@ -16,8 +16,19 @@ import {
   RefreshCw, 
   Sparkles,
   Award,
-  ChevronDown
+  ChevronDown,
+  LogOut
 } from 'lucide-react';
+import LoginPage from './LoginPage';
+import AdminDashboard from './AdminDashboard';
+
+interface AppUser {
+  id: string;
+  username: string;
+  displayName: string;
+  role: 'admin' | 'analyst';
+  avatar: string;
+}
 
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? 'http://localhost:3000/api'
@@ -45,7 +56,16 @@ interface Match {
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'crud' | 'planilla' | 'reportes'>('dashboard');
+  // Auth state — restore from localStorage on mount
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(() => {
+    try {
+      const saved = localStorage.getItem('tactico_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
+  const [authToken, setAuthToken] = useState<string>(() => localStorage.getItem('tactico_token') || '');
+
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'crud' | 'planilla' | 'reportes' | 'admin'>('dashboard');
   const [crudSubTab, setCrudSubTab] = useState<'tournaments' | 'stadiums' | 'clubs' | 'players' | 'matches'>('tournaments');
   const [reportSubTab, setReportSubTab] = useState<'players' | 'clubs'>('players');
 
@@ -90,6 +110,42 @@ export default function App() {
   // Status/Alert messages
   const [alert, setAlert] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Auth handlers
+  const handleLogin = (user: AppUser, token: string) => {
+    setCurrentUser(user);
+    setAuthToken(token);
+    // Auto-navigate admin to admin tab
+    if (user.role === 'admin') setActiveTab('admin');
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch(`${API_BASE}/auth/logout`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+    } catch { /* ignore */ }
+    localStorage.removeItem('tactico_token');
+    localStorage.removeItem('tactico_user');
+    setCurrentUser(null);
+    setAuthToken('');
+    setActiveTab('dashboard');
+  };
+
+  // Heartbeat — tells server this user is still online
+  useEffect(() => {
+    if (!authToken) return;
+    const sendHeartbeat = () => {
+      fetch(`${API_BASE}/auth/heartbeat`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken}` }
+      }).catch(() => {});
+    };
+    sendHeartbeat();
+    const interval = setInterval(sendHeartbeat, 30000);
+    return () => clearInterval(interval);
+  }, [authToken]);
 
   // Fetch initial data
   const fetchData = async () => {
@@ -460,6 +516,22 @@ export default function App() {
 
       if (res.ok) {
         showMsg('success', 'Planilla y estadísticas guardadas con éxito (Consistencia validada)');
+        // Log activity for admin tracking
+        if (currentUser && selectedMatch) {
+          const matchLabel = `${selectedMatch.homeClub?.name || 'Local'} vs ${selectedMatch.awayClub?.name || 'Visita'} (J${selectedMatch.matchday})`;
+          fetch(`${API_BASE}/activity`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+            body: JSON.stringify({
+              userId: currentUser.id,
+              username: currentUser.username,
+              displayName: currentUser.displayName,
+              action: 'upload_planilla',
+              detail: matchLabel,
+              matchId: selectedMatch.id
+            })
+          }).catch(() => {});
+        }
         // Reload match to reflect calculated minutes and new status
         loadMatchForPlanilla(selectedMatch.id);
       } else {
@@ -472,6 +544,11 @@ export default function App() {
       setLoading(false);
     }
   };
+
+  // Show login if not authenticated
+  if (!currentUser) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
 
   return (
     <div className="min-h-screen bg-[#070b14] text-gray-100 flex flex-col font-sans selection:bg-brand-500 selection:text-white">
@@ -513,15 +590,33 @@ export default function App() {
               className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 ${activeTab === 'reportes' ? 'bg-brand-600 text-white shadow-md' : 'text-gray-400 hover:text-white hover:bg-gray-800/40'}`}>
               Reportes
             </button>
+            {currentUser.role === 'admin' && (
+              <button
+                onClick={() => setActiveTab('admin')}
+                className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 ${activeTab === 'admin' ? 'bg-amber-600 text-white shadow-md' : 'text-amber-400 hover:text-white hover:bg-amber-800/40'}`}>
+                ⚡ Admin
+              </button>
+            )}
           </nav>
 
           <div className="flex items-center gap-3">
+            {/* Logged-in user pill */}
+            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#121b2d] border border-gray-800">
+              <span className="text-base">{currentUser.avatar}</span>
+              <div>
+                <p className="text-xs font-bold text-white leading-tight">{currentUser.displayName}</p>
+                <p className="text-xs text-gray-500 leading-tight">{currentUser.role === 'admin' ? '🎯 Admin' : 'Analista'}</p>
+              </div>
+            </div>
             <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-              Live Database
+              Live
             </div>
             <button onClick={fetchData} className="p-2.5 rounded-xl border border-gray-800 bg-[#121b2d] hover:bg-gray-800 text-gray-400 hover:text-white transition-colors duration-200">
               <RefreshCw className={`h-4.5 w-4.5 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+            <button onClick={handleLogout} title="Cerrar sesión" className="p-2.5 rounded-xl border border-gray-800 bg-[#121b2d] hover:bg-rose-900/40 hover:border-rose-700 text-gray-400 hover:text-rose-400 transition-colors duration-200">
+              <LogOut className="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -1429,6 +1524,11 @@ export default function App() {
               </div>
             )}
           </div>
+        )}
+
+        {/* ==================== TAB: ADMIN ==================== */}
+        {activeTab === 'admin' && currentUser?.role === 'admin' && (
+          <AdminDashboard token={authToken} />
         )}
 
       </main>
